@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import 'signupP.dart'; 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+import 'signupP.dart';
+import 'sociallog.dart'; // <-- SocialConfirmPage file
+import 'homeP.dart'; // ✅ make sure this file name matches your GuestHomePage file
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,8 +20,16 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _loadingSocial = false;
 
   static const Color kGold = Color(0xFFC9A633);
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +79,11 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 24),
 
                     _buildSocialLogin(),
+
+                    if (_loadingSocial) ...[
+                      const SizedBox(height: 18),
+                      const CircularProgressIndicator(),
+                    ],
                   ],
                 ),
               ),
@@ -165,7 +184,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // ✅ SIGN UP LINK (NEW)
           Center(
             child: TextButton(
               onPressed: _goToSignUp,
@@ -208,7 +226,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _socialButton(String icon, VoidCallback onTap) {
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
+      onTap: _loadingSocial ? null : onTap,
       child: Container(
         height: 54,
         width: 54,
@@ -249,15 +267,170 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _onEmailLogin() {
-    // TODO: Firebase email/password login
+  Future<void> _onEmailLogin() async {
+    final email = _emailController.text.trim();
+    final pass = _passwordController.text.trim();
+
+    if (email.isEmpty || pass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email and password')),
+      );
+      return;
+    }
+
+    try {
+      final userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      final user = userCred.user;
+      if (user == null || !mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomePage(
+            displayName: user.displayName ?? user.email ?? 'User',
+            isGuest: false,
+            initialTabIndex: 0,
+          ),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String msg = 'Login failed';
+      if (e.code == 'user-not-found') msg = 'No account found for that email.';
+      if (e.code == 'wrong-password') msg = 'Wrong password.';
+      if (e.code == 'invalid-email') msg = 'Invalid email.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: $e')),
+      );
+    }
   }
 
   void _onForgotPassword() {
     // TODO: Firebase reset password
   }
 
-  void _onGoogleLogin() {}
-  void _onAppleLogin() {}
-  void _onFacebookLogin() {}
+  Future<void> _onGoogleLogin() async {
+    try {
+      setState(() => _loadingSocial = true);
+
+      UserCredential userCred;
+
+      if (kIsWeb) {
+        // ✅ WEB Google login (Popup)
+        final googleProvider = GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile');
+
+        userCred = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      } else {
+        // ✅ ANDROID/iOS Google login (google_sign_in)
+        final googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) {
+          // user canceled
+          setState(() => _loadingSocial = false);
+          return;
+        }
+
+        final googleAuth = await googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      }
+
+      final user = userCred.user;
+
+      if (!mounted) return;
+
+      final displayName = user?.displayName ?? 'Guest';
+      final email = user?.email ?? 'No email';
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SocialConfirmPage(
+            displayName: displayName,
+            email: email,
+            providerLabel: 'Signing in with Google',
+            avatarText: _initials(displayName),
+            providerIconAsset: 'assets/icons/googlelogo.png',
+            onUseDifferentAccount: () async {
+              // Sign out from Firebase
+              await FirebaseAuth.instance.signOut();
+
+              // Also sign out from Google session (mobile)
+              if (!kIsWeb) {
+                await GoogleSignIn().signOut();
+              }
+
+              if (!mounted) return;
+              if (Navigator.canPop(context)) Navigator.pop(context);
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google sign-in failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingSocial = false);
+    }
+  }
+
+  void _onAppleLogin() {
+    // Apple Sign-In needs iOS/macOS setup (Xcode capabilities + Apple Developer setup)
+    // For now, this is a demo navigation so your UI flow works.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SocialConfirmPage(
+          displayName: 'Apple User',
+          email: 'appleuser@icloud.com',
+          providerLabel: 'Signing in with Apple',
+          avatarText: 'AU',
+          providerIconAsset: 'assets/icons/applelogo.png',
+          onUseDifferentAccount: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _onFacebookLogin() {
+    // TODO: Implement Facebook auth
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SocialConfirmPage(
+          displayName: 'Facebook User',
+          email: 'fbuser@example.com',
+          providerLabel: 'Signing in with Facebook',
+          avatarText: 'FU',
+          providerIconAsset: 'assets/icons/fblogo.png',
+
+          onUseDifferentAccount: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'GU';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
 }

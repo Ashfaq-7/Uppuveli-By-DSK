@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'homeP.dart'; // ✅ change this import to your actual GuestHomePage file
 
 /// Social Confirmation Page (Almost there!)
 /// - Shows user info (name + email + avatar)
 /// - Shows provider (Google / Apple)
-/// - Continue -> navigate to next page (Home)
+/// - Continue -> navigate to next page (GuestHomePage)
 /// - Use different account -> pop back (or go to login)
-///
-/// NOTE: The email/name shown here can be real (from Firebase user)
-/// but for now you can pass example strings.
 
 class SocialConfirmPage extends StatelessWidget {
   const SocialConfirmPage({
@@ -15,7 +13,6 @@ class SocialConfirmPage extends StatelessWidget {
     required this.displayName,
     required this.email,
     required this.providerLabel, // e.g. "Signing in with Google"
-    required this.onContinue,
     required this.onUseDifferentAccount,
     this.avatarText = "JD",
     this.providerIconAsset = 'assets/icons/google.png',
@@ -27,7 +24,6 @@ class SocialConfirmPage extends StatelessWidget {
   final String avatarText;
   final String providerIconAsset;
 
-  final VoidCallback onContinue;
   final VoidCallback onUseDifferentAccount;
 
   static const Color kGold = Color(0xFFC9A633);
@@ -85,7 +81,7 @@ class SocialConfirmPage extends StatelessWidget {
 
                     const SizedBox(height: 26),
 
-                    // Continue
+                    // ✅ Continue -> GuestHomePage
                     SizedBox(
                       width: double.infinity,
                       height: 48,
@@ -97,7 +93,18 @@ class SocialConfirmPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: onContinue,
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => HomePage(
+                                displayName: displayName,
+                                isGuest: false,
+                                initialTabIndex: 0,
+                              ),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Continue',
                           style: TextStyle(color: Colors.white, fontSize: 16),

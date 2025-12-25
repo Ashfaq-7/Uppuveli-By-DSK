@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
+import 'roomdetP.dart';
+import 'roomitem.dart';
 
 class AvailableRoomsPage extends StatelessWidget {
-  const AvailableRoomsPage({super.key});
+  const AvailableRoomsPage({
+    super.key,
+    required this.checkIn,
+    required this.checkOut,
+    required this.guests,
+  });
+
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final int guests;
 
   static const Color kGold = Color(0xFFC9A633);
   static const Color kBg = Color(0xFFF9F8F3);
@@ -10,10 +21,10 @@ class AvailableRoomsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rooms = <_RoomItem>[
-      const _RoomItem(
+    final rooms = <RoomItem>[
+      const RoomItem(
         name: 'Beach Bliss',
-        imageAsset: 'assets/images/beach.jpg',
+        imageAsset: 'assets/images/beach.png',
         sqft: 490,
         guests: 2,
         bedsLabel: '1 Bed',
@@ -21,9 +32,9 @@ class AvailableRoomsPage extends StatelessWidget {
         points: 500,
         refundable: true,
       ),
-      const _RoomItem(
+      const RoomItem(
         name: 'Breeze Bliss',
-        imageAsset: 'assets/images/breeze.jpg',
+        imageAsset: 'assets/images/breeze.png',
         sqft: 580,
         guests: 3,
         bedsLabel: '1 Bed',
@@ -31,9 +42,9 @@ class AvailableRoomsPage extends StatelessWidget {
         points: 500,
         refundable: true,
       ),
-      const _RoomItem(
+      const RoomItem(
         name: 'Garden Bliss',
-        imageAsset: 'assets/images/garden.jpg',
+        imageAsset: 'assets/images/garden.png',
         sqft: 560,
         guests: 3,
         bedsLabel: '2 Beds',
@@ -70,14 +81,31 @@ class AvailableRoomsPage extends StatelessWidget {
                 children: [
                   _HeaderBar(
                     title: 'Available Rooms',
-                    subtitle: 'Dec 20–23 | 2 Guests',
+                    subtitle: '${_fmtRange(checkIn, checkOut)} | $guests Guests',
                     onBack: () => Navigator.maybePop(context),
                   ),
                   const SizedBox(height: 12),
+
+                  // ✅ each room goes to RoomDetailsPage
                   ...rooms.map(
                     (r) => Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: _RoomCard(item: r, onViewBook: () {}),
+                      child: _RoomCard(
+                        item: r,
+                        onViewBook: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RoomDetailsPage(
+                                room: r,
+                                checkIn: checkIn,
+                                checkOut: checkOut,
+                                guests: guests,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -87,6 +115,20 @@ class AvailableRoomsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ---------- Helpers for header date ----------
+  static String _fmtRange(DateTime inDate, DateTime outDate) {
+    String md(DateTime d) => '${_mon(d.month)} ${d.day.toString().padLeft(2, '0')}';
+    return '${md(inDate)}-${md(outDate)}';
+  }
+
+  static String _mon(int m) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[m - 1];
   }
 }
 
@@ -161,7 +203,7 @@ class _RoomCard extends StatelessWidget {
   static const Color kTagOrange = Color(0xFFF0A46A);
   static const Color kRefundGreen = Color(0xFF57B88A);
 
-  final _RoomItem item;
+  final RoomItem item;
   final VoidCallback onViewBook;
 
   @override
@@ -322,28 +364,4 @@ class _MiniInfo extends StatelessWidget {
       ],
     );
   }
-}
-
-// ===================== Model =====================
-
-class _RoomItem {
-  final String name;
-  final String imageAsset;
-  final int sqft;
-  final int guests;
-  final String bedsLabel;
-  final int price;
-  final int points;
-  final bool refundable;
-
-  const _RoomItem({
-    required this.name,
-    required this.imageAsset,
-    required this.sqft,
-    required this.guests,
-    required this.bedsLabel,
-    required this.price,
-    required this.points,
-    required this.refundable,
-  });
 }

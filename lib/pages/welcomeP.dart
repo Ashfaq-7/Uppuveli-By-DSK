@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'loginP.dart';
 import 'signupP.dart';
-import 'guesthomeP.dart';
+import 'homeP.dart';
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
@@ -71,7 +71,7 @@ class WelcomePage extends StatelessWidget {
                         const SizedBox(height: 14),
                         _OutlineButton(
                           label: 'Continue as Guest',
-                          onTap: () => _replace(context, const GuestHomePage()),
+                          onTap: () => _replace(context, const HomePage()),
                         ),
 
                         SizedBox(height: size.height * 0.06),
